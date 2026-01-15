@@ -14,7 +14,6 @@ param (
 )
 
 if (-not $Password) {$Password = "welcome"}
-if (-not $ReferenceUser) {$ReferenceUser = "no-reply@($Domain)"}
 
 #Prepare the log file
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
@@ -88,7 +87,7 @@ try {
 	write-host $user_params
 	"Attempt to create the followng user has been initiated:" | Out-File -Append -FilePath $logFile
 	$user_params | Out-File -Append -FilePath $logFile
-	New-AzureADUser @user_params #Check to see if the at symbol needs to be a dollar sign instead.
+	New-AzureADUser @user_params
 	write-host "AD User successfully created!"
 	"AD User successfully created!" | Out-File -Append -FilePath $logFile
 }
@@ -97,8 +96,22 @@ catch {
 	"User adding failed." | Out-File -Append -FilePath $logFile
 }
 
+if ($ReferenceUser)
+	{
+		try
+		{
+			write-host "Attempting to copy groups from $($ReferenceUser)."
+			Get-AzureADUser -SearchString $ReferenceUser | Get-AzureADUserMembership | ForEach-Object {Add-AzureADGroupMember -ObjectID $_.ObjectID -RefObjectId $DisplayName}
+		}
+		catch
+		{
+			write-warning "Error copying user groups. See error: $_"
+			"Error occured copying groups from $($ReferenceUser)" | Out-File -Append -FilePath $logFile
+		}
+	}
 
 write-host "User creaction process has finished with password $($Password)"
 "User creation complete" | Out-File -Append -FilePath $logFile
 
 read-host
+
